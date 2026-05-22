@@ -1,23 +1,68 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Realmveil: Glassborn</title>
+
 <style>
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07131f;font-family:Arial}
-canvas{width:100vw;height:100vh;display:block}
-#hud{position:fixed;top:12px;left:12px;color:white;background:rgba(0,0,0,.45);border:1px solid #7df7ff;border-radius:14px;padding:10px;font-size:12px}
-#controls{position:fixed;bottom:14px;left:12px;display:flex;gap:8px}
-button{background:rgba(0,0,0,.55);color:white;border:1px solid #7df7ff;border-radius:12px;padding:9px 12px}
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #07131f;
+  font-family: Arial, sans-serif;
+}
+
+canvas {
+  width: 100vw;
+  height: 100vh;
+  display: block;
+}
+
+#hud {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  color: white;
+  background: rgba(0,0,0,.48);
+  border: 1px solid rgba(125,247,255,.75);
+  border-radius: 14px;
+  padding: 10px;
+  font-size: 12px;
+  z-index: 10;
+  backdrop-filter: blur(8px);
+}
+
+#controls {
+  position: fixed;
+  bottom: 14px;
+  left: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+
+button {
+  background: rgba(0,0,0,.58);
+  color: white;
+  border: 1px solid rgba(125,247,255,.75);
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-size: 12px;
+  backdrop-filter: blur(8px);
+}
 </style>
 </head>
+
 <body>
 
 <canvas id="game"></canvas>
 
 <div id="hud">
   <b>Realmveil: Glassborn</b><br>
-  HP: <span id="hp">100</span> • XP: <span id="xp">0</span>
+  HP: <span id="hp">100</span> • XP: <span id="xp">0</span> • Level: <span id="level">1</span>
 </div>
 
 <div id="controls">
@@ -27,245 +72,362 @@ button{background:rgba(0,0,0,.55);color:white;border:1px solid #7df7ff;border-ra
 </div>
 
 <script>
-const c=document.getElementById("game");
-const ctx=c.getContext("2d");
-let W,H;
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-function resize(){
-  W=c.width=innerWidth*devicePixelRatio;
-  H=c.height=innerHeight*devicePixelRatio;
-  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+let W, H, scale;
+
+function resize() {
+  scale = window.devicePixelRatio || 1;
+  W = canvas.width = innerWidth * scale;
+  H = canvas.height = innerHeight * scale;
+  canvas.style.width = innerWidth + "px";
+  canvas.style.height = innerHeight + "px";
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
 }
 resize();
-addEventListener("resize",resize);
+addEventListener("resize", resize);
 
-let hero={x:120,y:0,w:34,h:70,hp:100,xp:0,vy:0,jump:false,attack:false,spell:false};
-let monsters=[];
-let particles=[];
-let t=0;
+let time = 0;
 
-function spawnMonster(){
-  monsters.push({
-    x:innerWidth+80,
-    y:innerHeight-140,
-    w:50,
-    h:55,
-    hp:50,
-    speed:1.2+Math.random()*1.3,
-    type:Math.random()>.5?"wolf":"goblin"
+let hero = {
+  x: 135,
+  y: 0,
+  groundY: 0,
+  vy: 0,
+  hp: 100,
+  maxHp: 100,
+  xp: 0,
+  level: 1,
+  attacking: false,
+  casting: false,
+  facing: 1
+};
+
+let monsters = [];
+let particles = [];
+let fireflies = [];
+
+for (let i = 0; i < 80; i++) {
+  fireflies.push({
+    x: Math.random() * innerWidth,
+    y: Math.random() * innerHeight * 0.75,
+    r: Math.random() * 2 + 1,
+    s: Math.random() * 0.5 + 0.2,
+    o: Math.random()
   });
 }
-setInterval(spawnMonster,2600);
+
+function spawnMonster() {
+  monsters.push({
+    x: innerWidth + 80,
+    y: innerHeight - 118,
+    w: 52,
+    h: 62,
+    hp: 55 + hero.level * 8,
+    maxHp: 55 + hero.level * 8,
+    speed: 0.8 + Math.random() * 0.8,
+    type: Math.random() > 0.5 ? "wolf" : "goblin",
+    hit: 0
+  });
+}
+
+setInterval(spawnMonster, 2600);
 spawnMonster();
 
-function attack(){
-  hero.attack=true;
-  setTimeout(()=>hero.attack=false,250);
-  monsters.forEach(m=>{
-    if(Math.abs(m.x-hero.x)<95){
-      m.hp-=30;
-      hitParticles(m.x,m.y,"#ffd36b");
+function attack() {
+  hero.attacking = true;
+  setTimeout(() => hero.attacking = false, 260);
+
+  monsters.forEach(m => {
+    if (Math.abs(m.x - hero.x) < 110) {
+      m.hp -= 28 + hero.level * 4;
+      m.hit = 10;
+      burst(m.x, m.y - 35, "#ffd36b");
     }
   });
 }
 
-function spell(){
-  hero.spell=true;
-  setTimeout(()=>hero.spell=false,350);
-  monsters.forEach(m=>{
-    if(m.x<innerWidth){
-      m.hp-=18;
-      hitParticles(m.x,m.y,"#7df7ff");
+function spell() {
+  hero.casting = true;
+  setTimeout(() => hero.casting = false, 400);
+
+  monsters.forEach(m => {
+    if (m.x < innerWidth + 50) {
+      m.hp -= 16 + hero.level * 3;
+      m.hit = 10;
+      burst(m.x, m.y - 35, "#7df7ff");
     }
   });
+
+  burst(hero.x + 50, hero.y - 70, "#7df7ff");
 }
 
-function jump(){
-  if(!hero.jump){
-    hero.vy=-13;
-    hero.jump=true;
+function jump() {
+  if (Math.abs(hero.y - hero.groundY) < 1) {
+    hero.vy = -13;
   }
 }
 
-function hitParticles(x,y,color){
-  for(let i=0;i<18;i++){
-    particles.push({x,y,vx:(Math.random()-.5)*5,vy:(Math.random()-.5)*5,life:30,color});
+function burst(x, y, color) {
+  for (let i = 0; i < 20; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 5,
+      vy: (Math.random() - 0.5) * 5,
+      life: 32,
+      color
+    });
   }
 }
 
-function drawBackground(){
-  let g=ctx.createLinearGradient(0,0,0,innerHeight);
-  g.addColorStop(0,"#071936");
-  g.addColorStop(.5,"#113b3d");
-  g.addColorStop(1,"#11320f");
-  ctx.fillStyle=g;
-  ctx.fillRect(0,0,innerWidth,innerHeight);
+function drawBackground() {
+  const sky = ctx.createLinearGradient(0, 0, 0, innerHeight);
+  sky.addColorStop(0, "#07142d");
+  sky.addColorStop(0.35, "#123d46");
+  sky.addColorStop(0.72, "#1f5d35");
+  sky.addColorStop(1, "#2e7028");
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, innerWidth, innerHeight);
 
-  ctx.fillStyle="rgba(130,255,220,.12)";
-  for(let i=0;i<45;i++){
-    let x=(i*93+t*.15)%innerWidth;
-    let y=40+(i*47)%innerHeight;
-    ctx.beginPath();
-    ctx.arc(x,y,2+Math.sin(t*.03+i)*1.5,0,Math.PI*2);
-    ctx.fill();
-  }
-
-  drawTree(80,innerHeight-130,1.2);
-  drawTree(310,innerHeight-145,1.7);
-  drawTree(innerWidth-220,innerHeight-135,1.5);
-  drawTree(innerWidth-50,innerHeight-125,1.2);
-
-  ctx.fillStyle="#2f7d35";
-  ctx.fillRect(0,innerHeight-80,innerWidth,90);
-
-  for(let i=0;i<90;i++){
-    ctx.fillStyle=i%2?"#8cff87":"#d6ff9a";
-    ctx.beginPath();
-    ctx.arc((i*31+t)%innerWidth,innerHeight-72-Math.random()*20,2,0,Math.PI*2);
-    ctx.fill();
-  }
-}
-
-function drawTree(x,y,s){
-  ctx.save();
-  ctx.translate(x,y);
-  ctx.scale(s,s);
-  ctx.fillStyle="#4a2d13";
+  ctx.fillStyle = "rgba(180,255,230,0.08)";
   ctx.beginPath();
-  ctx.moveTo(-18,0);
-  ctx.quadraticCurveTo(-8,-100,10,-170);
-  ctx.quadraticCurveTo(35,-95,20,0);
+  ctx.arc(innerWidth * 0.72, innerHeight * 0.14, 95, 0, Math.PI * 2);
   ctx.fill();
 
-  for(let i=0;i<7;i++){
-    ctx.fillStyle=`rgba(${30+i*8},${110+i*18},55,.9)`;
+  drawParallaxTrees(0.25, "#0a1c25", 90, 0.35);
+  drawParallaxTrees(0.45, "#123227", 120, 0.55);
+  drawParallaxTrees(0.7, "#1e4e2d", 160, 0.8);
+
+  drawGround();
+
+  fireflies.forEach((f, i) => {
+    f.x += f.s;
+    f.y += Math.sin(time * 0.03 + i) * 0.15;
+    if (f.x > innerWidth + 20) f.x = -20;
+
+    ctx.globalAlpha = 0.35 + Math.sin(time * 0.05 + i) * 0.25;
+    ctx.fillStyle = "#baffd9";
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = "#7df7ff";
     ctx.beginPath();
-    ctx.ellipse((i-3)*18,-150+Math.sin(i)*20,55,42,0,0,Math.PI*2);
+    ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
     ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+  });
+}
+
+function drawParallaxTrees(speed, color, baseHeight, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  for (let i = 0; i < 9; i++) {
+    const x = ((i * 190 - time * speed) % (innerWidth + 220)) - 120;
+    const y = innerHeight - 86;
+
+    ctx.fillStyle = color;
+    ctx.fillRect(x + 42, y - baseHeight, 24, baseHeight);
+
+    for (let j = 0; j < 6; j++) {
+      ctx.beginPath();
+      ctx.ellipse(
+        x + 55 + (j - 3) * 18,
+        y - baseHeight - 45 + Math.sin(j) * 18,
+        58,
+        42,
+        0,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+    }
   }
+
   ctx.restore();
 }
 
-function drawHero(){
+function drawGround() {
+  ctx.fillStyle = "#2f7d35";
+  ctx.fillRect(0, innerHeight - 82, innerWidth, 100);
+
+  const glow = ctx.createLinearGradient(0, innerHeight - 118, 0, innerHeight);
+  glow.addColorStop(0, "rgba(200,255,130,0.22)");
+  glow.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, innerHeight - 120, innerWidth, 120);
+
+  for (let i = 0; i < 160; i++) {
+    const x = (i * 23 - time * 0.8) % innerWidth;
+    const y = innerHeight - 70 - Math.sin(i) * 12;
+
+    ctx.fillStyle = i % 3 === 0 ? "#d6ff9a" : "#8cff87";
+    ctx.beginPath();
+    ctx.ellipse(x, y, 3, 6, Math.sin(i), 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawHero() {
   ctx.save();
-  ctx.translate(hero.x,hero.y);
+  ctx.translate(hero.x, hero.y);
 
-  ctx.fillStyle="#7fdcff";
-  ctx.shadowBlur=18;
-  ctx.shadowColor="#7df7ff";
+  if (hero.attacking) ctx.translate(12, 0);
 
-  ctx.fillRect(-10,-55,20,45);
+  ctx.shadowBlur = 18;
+  ctx.shadowColor = "#7df7ff";
+
+  ctx.fillStyle = "#232a45";
   ctx.beginPath();
-  ctx.arc(0,-70,14,0,Math.PI*2);
+  ctx.roundRect(-15, -62, 30, 48, 10);
   ctx.fill();
 
-  ctx.shadowBlur=0;
-  ctx.fillStyle="#262b46";
-  ctx.fillRect(-13,-58,26,38);
-
-  ctx.fillStyle="#ffd6a5";
+  ctx.fillStyle = "#ffd6a5";
   ctx.beginPath();
-  ctx.arc(0,-72,12,0,Math.PI*2);
+  ctx.arc(0, -78, 14, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle="#5b2a1d";
+  ctx.fillStyle = "#5b2a1d";
   ctx.beginPath();
-  ctx.arc(0,-82,13,Math.PI,0);
+  ctx.arc(0, -86, 15, Math.PI, 0);
   ctx.fill();
 
-  ctx.strokeStyle="#e8f7ff";
-  ctx.lineWidth=4;
+  ctx.fillStyle = "#f2f6ff";
+  ctx.fillRect(-6, -38, 12, 24);
+
+  ctx.strokeStyle = "#e8f7ff";
+  ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.moveTo(12,-45);
-  ctx.lineTo(hero.attack?70:-5,-65);
+  ctx.moveTo(14, -48);
+  ctx.lineTo(hero.attacking ? 75 : 34, hero.attacking ? -62 : -78);
   ctx.stroke();
 
-  if(hero.spell){
-    ctx.fillStyle="rgba(125,247,255,.7)";
+  ctx.strokeStyle = "#ffd36b";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-10, -16);
+  ctx.lineTo(-18, 0);
+  ctx.moveTo(10, -16);
+  ctx.lineTo(18, 0);
+  ctx.stroke();
+
+  if (hero.casting) {
+    ctx.shadowColor = "#7df7ff";
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = "rgba(125,247,255,0.75)";
     ctx.beginPath();
-    ctx.arc(45,-70,22,0,Math.PI*2);
+    ctx.arc(52, -72, 24, 0, Math.PI * 2);
     ctx.fill();
   }
 
   ctx.restore();
 }
 
-function drawMonster(m){
+function drawMonster(m) {
   ctx.save();
-  ctx.translate(m.x,m.y);
+  ctx.translate(m.x, m.y);
 
-  ctx.shadowBlur=18;
-  ctx.shadowColor="#ff5c7a";
+  if (m.hit > 0) ctx.translate(-8, 0);
 
-  ctx.fillStyle=m.type==="wolf"?"#2b2346":"#3d6b38";
+  ctx.shadowBlur = 18;
+  ctx.shadowColor = "#ff5c7a";
+
+  ctx.fillStyle = m.type === "wolf" ? "#2b2346" : "#3d6b38";
   ctx.beginPath();
-  ctx.ellipse(0,-30,28,32,0,0,Math.PI*2);
+  ctx.ellipse(0, -34, 30, 34, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle="#ffdd66";
+  ctx.fillStyle = "#ffdd66";
   ctx.beginPath();
-  ctx.arc(-9,-38,4,0,Math.PI*2);
-  ctx.arc(9,-38,4,0,Math.PI*2);
+  ctx.arc(-9, -42, 4, 0, Math.PI * 2);
+  ctx.arc(9, -42, 4, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle="#151515";
-  ctx.fillRect(-20,-5,8,20);
-  ctx.fillRect(12,-5,8,20);
+  ctx.fillStyle = "#141414";
+  ctx.fillRect(-20, -6, 8, 22);
+  ctx.fillRect(12, -6, 8, 22);
+
+  ctx.fillStyle = "rgba(255,255,255,0.25)";
+  ctx.fillRect(-26, -82, 52, 6);
+
+  ctx.fillStyle = "#ff5555";
+  ctx.fillRect(-26, -82, 52 * Math.max(0, m.hp / m.maxHp), 6);
 
   ctx.restore();
 }
 
-function update(){
-  t++;
+function update() {
+  time++;
 
-  hero.y=innerHeight-90;
-  hero.vy+=.7;
-  hero.y+=hero.vy;
-  if(hero.y>innerHeight-90){
-    hero.y=innerHeight-90;
-    hero.vy=0;
-    hero.jump=false;
+  hero.groundY = innerHeight - 90;
+  hero.vy += 0.7;
+  hero.y += hero.vy;
+
+  if (hero.y > hero.groundY) {
+    hero.y = hero.groundY;
+    hero.vy = 0;
   }
 
-  monsters.forEach(m=>m.x-=m.speed);
-  monsters=monsters.filter(m=>{
-    if(m.hp<=0){hero.xp+=10;return false}
-    if(m.x<-80)return false;
-    if(Math.abs(m.x-hero.x)<35){
-      hero.hp=Math.max(0,hero.hp-.08);
+  monsters.forEach(m => {
+    m.x -= m.speed;
+    if (m.hit > 0) m.hit--;
+
+    if (Math.abs(m.x - hero.x) < 35) {
+      hero.hp = Math.max(0, hero.hp - 0.08);
     }
-    return true;
   });
 
-  particles.forEach(p=>{
-    p.x+=p.vx;p.y+=p.vy;p.life--;
+  monsters = monsters.filter(m => {
+    if (m.hp <= 0) {
+      hero.xp += 10;
+      if (hero.xp >= hero.level * 50) {
+        hero.xp = 0;
+        hero.level++;
+        hero.maxHp += 10;
+        hero.hp = hero.maxHp;
+      }
+      return false;
+    }
+    return m.x > -100;
   });
-  particles=particles.filter(p=>p.life>0);
 
-  document.getElementById("hp").innerText=Math.floor(hero.hp);
-  document.getElementById("xp").innerText=hero.xp;
+  particles.forEach(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.05;
+    p.life--;
+  });
+
+  particles = particles.filter(p => p.life > 0);
+
+  document.getElementById("hp").innerText = Math.floor(hero.hp);
+  document.getElementById("xp").innerText = hero.xp;
+  document.getElementById("level").innerText = hero.level;
 }
 
-function draw(){
+function drawParticles() {
+  particles.forEach(p => {
+    ctx.globalAlpha = p.life / 32;
+    ctx.fillStyle = p.color;
+    ctx.shadowBlur = 16;
+    ctx.shadowColor = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+  });
+}
+
+function loop() {
+  update();
   drawBackground();
   drawHero();
   monsters.forEach(drawMonster);
-
-  particles.forEach(p=>{
-    ctx.fillStyle=p.color;
-    ctx.globalAlpha=p.life/30;
-    ctx.beginPath();
-    ctx.arc(p.x,p.y,4,0,Math.PI*2);
-    ctx.fill();
-    ctx.globalAlpha=1;
-  });
-}
-
-function loop(){
-  update();
-  draw();
+  drawParticles();
   requestAnimationFrame(loop);
 }
+
 loop();
 </script>
 </body>
