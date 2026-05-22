@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+<title>Realmveil: Glassborn</title>
+
+<style>
+
+html, body {
+  margin: 0;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    #12002e 0%,
+    #25004a 30%,
+    #3f0068 60%,
+    #ff6fd8 100%
+  );
+  font-family: Arial, sans-serif;
+}
+
+canvas {
+  display: block;
+}
+
+#ui {
+  position: fixed;
+  top: 15px;
+  left: 15px;
+  z-index: 10;
+  display: flex;
+  gap: 10px;
+}
+
+button {
+  border: none;
+  padding: 12px 18px;
+  border-radius: 14px;
+  background: rgba(0,0,0,0.5);
+  color: white;
+  font-size: 14px;
+  backdrop-filter: blur(8px);
+}
+
+#title {
+  position: fixed;
+  top: 15px;
+  right: 20px;
+  color: white;
+  font-size: 22px;
+  font-weight: bold;
+  text-shadow: 0 0 12px rgba(255,255,255,0.7);
+}
+
+#race {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  color: white;
+  background: rgba(0,0,0,0.5);
+  padding: 14px;
+  border-radius: 16px;
+  z-index: 10;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="title">REALMVEIL: GLASSBORN</div>
+
+<div id="ui">
+  <button onclick="setRace('Human')">🧑 Human</button>
+  <button onclick="setRace('Elf')">🧝 Elf</button>
+  <button onclick="setRace('Vampire')">🧛 Vampire</button>
+  <button onclick="attack()">⚔️ Attack</button>
+</div>
+
+<div id="race">
+Current Race:
+<span id="currentRace">Human</span>
+</div>
+
+<script type="module">
+
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js';
+
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(
+  60,
+  window.innerWidth/window.innerHeight,
+  0.1,
+  1000
+);
+
+camera.position.z = 12;
+
+const renderer = new THREE.WebGLRenderer({
+  antialias: true,
+  alpha: true
+});
+
+renderer.setSize(window.innerWidth, window.innerHeight);
+
+renderer.setPixelRatio(window.devicePixelRatio);
+
+document.body.appendChild(renderer.domElement);
+
+const ambient = new THREE.AmbientLight(0xffffff, 2);
+scene.add(ambient);
+
+const moon = new THREE.PointLight(0xff88ff, 5);
+moon.position.set(5,5,5);
+scene.add(moon);
+
+const stars = new THREE.Group();
+
+for(let i=0;i<800;i++){
+
+  const geo = new THREE.SphereGeometry(0.03,8,8);
+
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0xffffff
+  });
+
+  const star = new THREE.Mesh(geo,mat);
+
+  star.position.x = (Math.random()-0.5)*200;
+  star.position.y = (Math.random()-0.5)*200;
+  star.position.z = (Math.random()-0.5)*200;
+
+  stars.add(star);
+}
+
+scene.add(stars);
+
+const forest = new THREE.Group();
+
+for(let i=0;i<120;i++){
+
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.12,0.2,2),
+    new THREE.MeshStandardMaterial({
+      color: 0x3b220f
+    })
+  );
+
+  const leaves = new THREE.Mesh(
+    new THREE.SphereGeometry(0.8,16,16),
+    new THREE.MeshStandardMaterial({
+      color: new THREE.Color(
+        `hsl(${Math.random()*100+120},80%,55%)`
+      ),
+      emissive: 0x220022
+    })
+  );
+
+  trunk.position.set(
+    (Math.random()-0.5)*60,
+    -6,
+    (Math.random()-0.5)*50
+  );
+
+  leaves.position.y = 1;
+
+  trunk.add(leaves);
+
+  forest.add(trunk);
+}
+
+scene.add(forest);
+
+const playerGroup = new THREE.Group();
+
+scene.add(playerGroup);
+
+let body;
+let head;
+
+function createCharacter(type){
+
+  playerGroup.clear();
+
+  let skin = 0xffd7b5;
+
+  if(type==="Elf") skin = 0xbaffc9;
+  if(type==="Vampire") skin = 0xe0d3ff;
+
+  body = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.8,2.2,4,8),
+    new THREE.MeshStandardMaterial({
+      color: skin,
+      emissive: 0x220022,
+      metalness: 0.2,
+      roughness: 0.4
+    })
+  );
+
+  head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.7,32,32),
+    new THREE.MeshStandardMaterial({
+      color: skin
+    })
+  );
+
+  head.position.y = 2;
+
+  const eyeGeo = new THREE.SphereGeometry(0.08,16,16);
+
+  const eyeMat = new THREE.MeshBasicMaterial({
+    color: 0x000000
+  });
+
+  const eye1 = new THREE.Mesh(eyeGeo,eyeMat);
+  const eye2 = new THREE.Mesh(eyeGeo,eyeMat);
+
+  eye1.position.set(-0.18,0.05,0.62);
+  eye2.position.set(0.18,0.05,0.62);
+
+  head.add(eye1);
+  head.add(eye2);
+
+  playerGroup.add(body);
+  playerGroup.add(head);
+
+  playerGroup.position.y = -2;
+}
+
+createCharacter("Human");
+
+window.setRace = function(type){
+  document.getElementById("currentRace").innerText = type;
+  createCharacter(type);
+}
+
+let attackAnim = false;
+
+window.attack = function(){
+  attackAnim = true;
+}
+
+const monsters = [];
+
+function createMonster(){
+
+  const geo = new THREE.IcosahedronGeometry(0.8,1);
+
+  const mat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(
+      `hsl(${Math.random()*360},90%,60%)`
+    ),
+    emissive: 0x5500ff,
+    metalness: 0.6,
+    roughness: 0.3
+  });
+
+  const monster = new THREE.Mesh(geo,mat);
+
+  monster.position.set(
+    (Math.random()-0.5)*20,
+    Math.random()*6-2,
+    -Math.random()*30
+  );
+
+  scene.add(monster);
+
+  monsters.push(monster);
+}
+
+for(let i=0;i<15;i++){
+  createMonster();
+}
+
+function animate(){
+
+  requestAnimationFrame(animate);
+
+  const t = Date.now()*0.001;
+
+  stars.rotation.y += 0.0005;
+
+  forest.children.forEach((tree,i)=>{
+    tree.rotation.z = Math.sin(t+i)*0.02;
+  });
+
+  monsters.forEach((m,i)=>{
+
+    m.rotation.x += 0.01;
+    m.rotation.y += 0.01;
+
+    m.position.z += 0.03;
+
+    m.position.y += Math.sin(t+i)*0.01;
+
+    if(m.position.z > 10){
+      m.position.z = -40;
+    }
+  });
+
+  playerGroup.rotation.y = Math.sin(t)*0.2;
+
+  playerGroup.position.y = -2 + Math.sin(t*3)*0.08;
+
+  if(attackAnim){
+
+    playerGroup.rotation.z += 0.2;
+
+    if(playerGroup.rotation.z > 1){
+      attackAnim = false;
+      playerGroup.rotation.z = 0;
+    }
+  }
+
+  renderer.render(scene,camera);
+}
+
+animate();
+
+window.addEventListener('resize',()=>{
+
+  camera.aspect = window.innerWidth/window.innerHeight;
+
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(
+    window.innerWidth,
+    window.innerHeight
+  );
+
+});
+
+</script>
+
+</body>
+</html>
