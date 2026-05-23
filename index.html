@@ -1,50 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Realmveil: Glassborn</title>
 
 <style>
 html, body {
-  margin:0;
-  overflow:hidden;
-  background:#07131f;
+  margin: 0;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  background: #07131f;
+  font-family: Arial, sans-serif;
 }
 
 canvas {
-  display:block;
+  display: block;
+  width: 100vw;
+  height: 100vh;
 }
 
 #hud {
-  position:fixed;
-  top:20px;
-  left:20px;
-  color:white;
-  font-family:Arial;
-  z-index:10;
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  color: white;
+  z-index: 10;
+  background: rgba(0,0,0,0.45);
+  border: 1px solid rgba(125,247,255,0.7);
+  border-radius: 12px;
+  padding: 10px;
+  font-size: 12px;
+  backdrop-filter: blur(8px);
 }
 
 .bar {
-  width:220px;
-  height:18px;
-  background:#222;
-  border-radius:20px;
-  overflow:hidden;
-  margin-bottom:10px;
+  width: 190px;
+  height: 13px;
+  background: rgba(0,0,0,0.7);
+  border-radius: 20px;
+  overflow: hidden;
+  margin-top: 5px;
 }
 
-.fill-health {
-  height:100%;
-  width:85%;
-  background:linear-gradient(to right,#00ff99,#00cc66);
+.health {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(to right, #00ff99, #00cc66);
 }
 
-.fill-mana {
-  height:100%;
-  width:60%;
-  background:linear-gradient(to right,#00aaff,#0044ff);
+.mana {
+  height: 100%;
+  width: 70%;
+  background: linear-gradient(to right, #00ccff, #004cff);
+}
+
+#controls {
+  position: fixed;
+  bottom: 14px;
+  left: 14px;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+}
+
+button {
+  background: rgba(0,0,0,0.55);
+  color: white;
+  border: 1px solid rgba(125,247,255,0.75);
+  border-radius: 12px;
+  padding: 10px 13px;
 }
 </style>
 </head>
@@ -52,15 +78,17 @@ canvas {
 <body>
 
 <div id="hud">
-  <div>LEVEL 1 SHADOW KNIGHT</div>
+  <b>Shadowborn Knight</b><br>
+  HP
+  <div class="bar"><div class="health" id="healthBar"></div></div>
+  Mana
+  <div class="bar"><div class="mana" id="manaBar"></div></div>
+</div>
 
-  <div class="bar">
-    <div class="fill-health"></div>
-  </div>
-
-  <div class="bar">
-    <div class="fill-mana"></div>
-  </div>
+<div id="controls">
+  <button onclick="attack()">⚔ Attack</button>
+  <button onclick="dash()">💨 Dash</button>
+  <button onclick="spell()">✦ Spell</button>
 </div>
 
 <canvas id="game"></canvas>
@@ -69,219 +97,188 @@ canvas {
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+
+resize();
+window.addEventListener("resize", resize);
 
 const hero = new Image();
 
 /*
-REPLACE THIS WITH YOUR PNG URL LATER
+Your uploaded file is named:
+Noir .PNG
+
+Because there is a space before .PNG, we must write it like this:
 */
-hero.src = "https://i.imgur.com/8RKXAIV.png";
+hero.src = "Noir%20.PNG";
+
+let heroReady = false;
+
+hero.onload = () => {
+  heroReady = true;
+};
 
 let player = {
-  x: 300,
-  y: 420,
-  width: 240,
-  height: 240,
-  speed: 6
+  x: 160,
+  y: canvas.height - 360,
+  width: 260,
+  height: 320,
+  speed: 5,
+  vx: 0,
+  hp: 100,
+  mana: 70,
+  attacking: false,
+  dashing: false,
+  casting: false,
+  facing: 1
 };
+
+let cameraX = 0;
+let time = 0;
+let particles = [];
+let enemies = [];
 
 const keys = {};
 
 window.addEventListener("keydown", e => {
-  keys[e.key] = true;
+  keys[e.key.toLowerCase()] = true;
 });
 
 window.addEventListener("keyup", e => {
-  keys[e.key] = false;
+  keys[e.key.toLowerCase()] = false;
 });
 
+function spawnEnemy() {
+  enemies.push({
+    x: canvas.width + 100 + Math.random() * 400,
+    y: canvas.height - 190,
+    width: 70,
+    height: 90,
+    hp: 60,
+    speed: 1 + Math.random() * 0.7,
+    type: Math.random() > 0.5 ? "wraith" : "goblin"
+  });
+}
+
+setInterval(spawnEnemy, 3000);
+spawnEnemy();
+
+function attack() {
+  player.attacking = true;
+
+  enemies.forEach(enemy => {
+    const dx = Math.abs((enemy.x - cameraX) - player.x);
+    if (dx < 160) {
+      enemy.hp -= 30;
+      burst(enemy.x - cameraX, enemy.y, "#ffd36b");
+    }
+  });
+
+  setTimeout(() => {
+    player.attacking = false;
+  }, 250);
+}
+
+function dash() {
+  player.dashing = true;
+  player.x += 80 * player.facing;
+
+  burst(player.x, player.y + 120, "#7df7ff");
+
+  setTimeout(() => {
+    player.dashing = false;
+  }, 220);
+}
+
+function spell() {
+  if (player.mana < 15) return;
+
+  player.casting = true;
+  player.mana -= 15;
+
+  enemies.forEach(enemy => {
+    enemy.hp -= 18;
+    burst(enemy.x - cameraX, enemy.y, "#7df7ff");
+  });
+
+  setTimeout(() => {
+    player.casting = false;
+  }, 350);
+}
+
+function burst(x, y, color) {
+  for (let i = 0; i < 24; i++) {
+    particles.push({
+      x,
+      y,
+      vx: (Math.random() - 0.5) * 6,
+      vy: (Math.random() - 0.5) * 6,
+      life: 35,
+      color
+    });
+  }
+}
+
 function drawBackground() {
-
-  // SKY
-  const sky = ctx.createLinearGradient(
-    0,
-    0,
-    0,
-    canvas.height
-  );
-
-  sky.addColorStop(0, "#10263f");
-  sky.addColorStop(1, "#07131f");
+  const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  sky.addColorStop(0, "#071936");
+  sky.addColorStop(0.45, "#143f4a");
+  sky.addColorStop(0.8, "#2c6736");
+  sky.addColorStop(1, "#4dbb65");
 
   ctx.fillStyle = sky;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // GLOW
-  const moonGlow = ctx.createRadialGradient(
-    canvas.width * 0.7,
-    120,
+  const glow = ctx.createRadialGradient(
+    canvas.width * 0.72,
+    110,
     10,
-    canvas.width * 0.7,
-    120,
-    220
+    canvas.width * 0.72,
+    110,
+    240
   );
 
-  moonGlow.addColorStop(0,"rgba(120,220,255,0.25)");
-  moonGlow.addColorStop(1,"rgba(0,0,0,0)");
+  glow.addColorStop(0, "rgba(140,230,255,0.28)");
+  glow.addColorStop(1, "rgba(0,0,0,0)");
 
-  ctx.fillStyle = moonGlow;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // TREES
-  for(let i=0;i<18;i++){
+  drawTreeLayer(0.15, "#071522", 220, 0.45);
+  drawTreeLayer(0.35, "#14342b", 190, 0.7);
+  drawTreeLayer(0.7, "#245b35", 150, 1);
 
-    let x = i * 180;
-
-    ctx.fillStyle = "#13291d";
-
-    ctx.fillRect(
-      x + 40,
-      180,
-      45,
-      420
-    );
-
-    ctx.beginPath();
-
-    ctx.arc(
-      x + 60,
-      180,
-      90,
-      0,
-      Math.PI * 2
-    );
-
-    ctx.fillStyle = "#29593f";
-    ctx.fill();
-
-    ctx.beginPath();
-
-    ctx.arc(
-      x + 95,
-      200,
-      70,
-      0,
-      Math.PI * 2
-    );
-
-    ctx.fillStyle = "#3d7a58";
-    ctx.fill();
-  }
-
-  // GROUND
-  const ground = ctx.createLinearGradient(
-    0,
-    canvas.height - 220,
-    0,
-    canvas.height
-  );
-
-  ground.addColorStop(0,"#5ccf88");
-  ground.addColorStop(1,"#1e5934");
-
-  ctx.fillStyle = ground;
-
-  ctx.fillRect(
-    0,
-    canvas.height - 220,
-    canvas.width,
-    220
-  );
-
-  // LIGHT PARTICLES
-  for(let i=0;i<80;i++){
-
-    ctx.fillStyle =
-      "rgba(255,255,255,0.18)";
-
-    ctx.beginPath();
-
-    ctx.arc(
-      Math.random() * canvas.width,
-      Math.random() * canvas.height,
-      Math.random() * 2,
-      0,
-      Math.PI * 2
-    );
-
-    ctx.fill();
-  }
+  drawGround();
+  drawFireflies();
 }
 
-function update() {
+function drawTreeLayer(speed, color, height, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
 
-  if(keys["a"] || keys["ArrowLeft"]){
-    player.x -= player.speed;
+  for (let i = 0; i < 10; i++) {
+    const x = ((i * 180 - cameraX * speed) % (canvas.width + 260)) - 140;
+    const base = canvas.height - 110;
+
+    drawTree(x, base, height, color);
   }
 
-  if(keys["d"] || keys["ArrowRight"]){
-    player.x += player.speed;
-  }
-
-  if(keys["w"] || keys["ArrowUp"]){
-    player.y -= player.speed;
-  }
-
-  if(keys["s"] || keys["ArrowDown"]){
-    player.y += player.speed;
-  }
+  ctx.restore();
 }
 
-function drawHero(){
+function drawTree(x, y, h, color) {
+  ctx.fillStyle = "#3a2414";
 
-  ctx.drawImage(
-    hero,
-    player.x,
-    player.y,
-    player.width,
-    player.height
-  );
-}
+  ctx.beginPath();
+  ctx.moveTo(x + 40, y);
+  ctx.bezierCurveTo(x + 52, y - h * 0.35, x + 25, y - h * 0.7, x + 60, y - h);
+  ctx.bezierCurveTo(x + 95, y - h * 0.65, x + 78, y - h * 0.25, x + 85, y);
+  ctx.closePath();
+  ctx.fill();
 
-function gameLoop(){
-
-  ctx.clearRect(
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
-
-  drawBackground();
-
-  update();
-
-  drawHero();
-
-  requestAnimationFrame(gameLoop);
-}
-
-hero.onload = () => {
-  gameLoop();
-};
-</script>
-
-</body>
-</html>
-const heroImage = new Image();
-heroImage.src = "Noir%20.PNG";
-
-const player = {
-    x: 300,
-    y: 300,
-    width: 170,
-    height: 170,
-    speed: 5
-};
-
-function drawPlayer() {
-    ctx.drawImage(
-        heroImage,
-        player.x,
-        player.y,
-        player.width,
-        player.height
-    );
-}
+  ctx.strokeStyle = "rgba(255,220,120,0.22)";
+  ctx.lineWidth = 4;
+  ctx.begin
