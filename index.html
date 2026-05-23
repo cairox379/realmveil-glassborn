@@ -1,284 +1,173 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Realmveil: Glassborn</title>
-
 <style>
-html, body {
-  margin: 0;
-  overflow: hidden;
-  width: 100%;
-  height: 100%;
-  background: #07131f;
-  font-family: Arial, sans-serif;
-}
-
-canvas {
-  display: block;
-  width: 100vw;
-  height: 100vh;
-}
-
-#hud {
-  position: fixed;
-  top: 14px;
-  left: 14px;
-  color: white;
-  z-index: 10;
-  background: rgba(0,0,0,0.45);
-  border: 1px solid rgba(125,247,255,0.7);
-  border-radius: 12px;
-  padding: 10px;
-  font-size: 12px;
-  backdrop-filter: blur(8px);
-}
-
-.bar {
-  width: 190px;
-  height: 13px;
-  background: rgba(0,0,0,0.7);
-  border-radius: 20px;
-  overflow: hidden;
-  margin-top: 5px;
-}
-
-.health {
-  height: 100%;
-  width: 100%;
-  background: linear-gradient(to right, #00ff99, #00cc66);
-}
-
-.mana {
-  height: 100%;
-  width: 70%;
-  background: linear-gradient(to right, #00ccff, #004cff);
-}
-
-#controls {
-  position: fixed;
-  bottom: 14px;
-  left: 14px;
-  z-index: 10;
-  display: flex;
-  gap: 8px;
-}
-
-button {
-  background: rgba(0,0,0,0.55);
-  color: white;
-  border: 1px solid rgba(125,247,255,0.75);
-  border-radius: 12px;
-  padding: 10px 13px;
-}
+html,body{margin:0;overflow:hidden;background:#07131f;font-family:Arial}
+canvas{display:block;width:100vw;height:100vh}
+#hud{position:fixed;top:14px;left:14px;color:white;background:rgba(0,0,0,.5);border:1px solid #7df7ff;border-radius:14px;padding:10px;z-index:10}
+#controls{position:fixed;bottom:80px;left:14px;display:flex;gap:10px;z-index:10}
+button{background:rgba(0,0,0,.55);color:white;border:1px solid #7df7ff;border-radius:14px;padding:12px}
 </style>
 </head>
-
 <body>
 
 <div id="hud">
-  <b>Shadowborn Knight</b><br>
-  HP
-  <div class="bar"><div class="health" id="healthBar"></div></div>
-  Mana
-  <div class="bar"><div class="mana" id="manaBar"></div></div>
+<b>Shadowborn Knight</b><br>
+HP <div style="width:220px;height:14px;background:#111;border-radius:20px"><div style="width:100%;height:100%;background:#00ff99;border-radius:20px"></div></div>
+Mana <div style="width:220px;height:14px;background:#111;border-radius:20px"><div style="width:70%;height:100%;background:#009dff;border-radius:20px"></div></div>
+<div id="status">Loading hero...</div>
 </div>
 
 <div id="controls">
-  <button onclick="attack()">⚔ Attack</button>
-  <button onclick="dash()">💨 Dash</button>
-  <button onclick="spell()">✦ Spell</button>
+<button onclick="attack()">⚔ Attack</button>
+<button onclick="dash()">💨 Dash</button>
+<button onclick="spell()">✦ Spell</button>
 </div>
 
 <canvas id="game"></canvas>
 
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
 
-function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+function resize(){
+canvas.width=innerWidth;
+canvas.height=innerHeight;
 }
-
 resize();
-window.addEventListener("resize", resize);
+addEventListener("resize",resize);
 
-const hero = new Image();
+const statusBox=document.getElementById("status");
 
-/*
-Your uploaded file is named:
-Noir .PNG
+const hero=new Image();
+hero.src="./Noir%20.PNG";
 
-Because there is a space before .PNG, we must write it like this:
-*/
-hero.src = "Noir%20.PNG";
+let heroLoaded=false;
 
-let heroReady = false;
-
-hero.onload = () => {
-  heroReady = true;
+hero.onload=()=>{
+heroLoaded=true;
+statusBox.innerText="Hero loaded";
 };
 
-let player = {
-  x: 160,
-  y: canvas.height - 360,
-  width: 260,
-  height: 320,
-  speed: 5,
-  vx: 0,
-  hp: 100,
-  mana: 70,
-  attacking: false,
-  dashing: false,
-  casting: false,
-  facing: 1
+hero.onerror=()=>{
+statusBox.innerText="Hero image not found. Rename file to hero.png";
 };
 
-let cameraX = 0;
-let time = 0;
-let particles = [];
-let enemies = [];
+let player={
+x:140,
+y:innerHeight-360,
+w:250,
+h:320,
+speed:5,
+facing:1,
+attack:false,
+dash:false,
+spell:false
+};
 
-const keys = {};
+const keys={};
 
-window.addEventListener("keydown", e => {
-  keys[e.key.toLowerCase()] = true;
-});
+addEventListener("keydown",e=>keys[e.key.toLowerCase()]=true);
+addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
 
-window.addEventListener("keyup", e => {
-  keys[e.key.toLowerCase()] = false;
-});
+function attack(){player.attack=true;setTimeout(()=>player.attack=false,250)}
+function dash(){player.x+=80*player.facing;player.dash=true;setTimeout(()=>player.dash=false,250)}
+function spell(){player.spell=true;setTimeout(()=>player.spell=false,350)}
 
-function spawnEnemy() {
-  enemies.push({
-    x: canvas.width + 100 + Math.random() * 400,
-    y: canvas.height - 190,
-    width: 70,
-    height: 90,
-    hp: 60,
-    speed: 1 + Math.random() * 0.7,
-    type: Math.random() > 0.5 ? "wraith" : "goblin"
-  });
+function drawBackground(){
+let sky=ctx.createLinearGradient(0,0,0,canvas.height);
+sky.addColorStop(0,"#071936");
+sky.addColorStop(.5,"#123b48");
+sky.addColorStop(1,"#2f7d35");
+ctx.fillStyle=sky;
+ctx.fillRect(0,0,canvas.width,canvas.height);
+
+for(let i=0;i<8;i++){
+let x=i*170;
+ctx.fillStyle="#2d1b0f";
+ctx.fillRect(x+50,canvas.height-440,35,330);
+
+ctx.fillStyle="#245b35";
+ctx.beginPath();
+ctx.arc(x+70,canvas.height-450,95,0,Math.PI*2);
+ctx.fill();
+
+ctx.fillStyle="#3d8a55";
+ctx.beginPath();
+ctx.arc(x+110,canvas.height-420,70,0,Math.PI*2);
+ctx.fill();
 }
 
-setInterval(spawnEnemy, 3000);
-spawnEnemy();
+ctx.fillStyle="#52c96b";
+ctx.fillRect(0,canvas.height-115,canvas.width,115);
 
-function attack() {
-  player.attacking = true;
-
-  enemies.forEach(enemy => {
-    const dx = Math.abs((enemy.x - cameraX) - player.x);
-    if (dx < 160) {
-      enemy.hp -= 30;
-      burst(enemy.x - cameraX, enemy.y, "#ffd36b");
-    }
-  });
-
-  setTimeout(() => {
-    player.attacking = false;
-  }, 250);
+for(let i=0;i<80;i++){
+ctx.fillStyle="rgba(190,255,220,.55)";
+ctx.beginPath();
+ctx.arc((i*50)%canvas.width,80+(i*73)%400,2,0,Math.PI*2);
+ctx.fill();
+}
 }
 
-function dash() {
-  player.dashing = true;
-  player.x += 80 * player.facing;
+function update(){
+if(keys["a"]||keys["arrowleft"]){player.x-=player.speed;player.facing=-1}
+if(keys["d"]||keys["arrowright"]){player.x+=player.speed;player.facing=1}
+if(keys["w"]||keys["arrowup"])player.y-=player.speed;
+if(keys["s"]||keys["arrowdown"])player.y+=player.speed;
 
-  burst(player.x, player.y + 120, "#7df7ff");
-
-  setTimeout(() => {
-    player.dashing = false;
-  }, 220);
+player.x=Math.max(0,Math.min(canvas.width-player.w,player.x));
+player.y=Math.max(100,Math.min(canvas.height-player.h-70,player.y));
 }
 
-function spell() {
-  if (player.mana < 15) return;
-
-  player.casting = true;
-  player.mana -= 15;
-
-  enemies.forEach(enemy => {
-    enemy.hp -= 18;
-    burst(enemy.x - cameraX, enemy.y, "#7df7ff");
-  });
-
-  setTimeout(() => {
-    player.casting = false;
-  }, 350);
+function drawHero(){
+if(!heroLoaded){
+ctx.fillStyle="white";
+ctx.font="22px Arial";
+ctx.fillText("Hero image not loaded",40,180);
+return;
 }
 
-function burst(x, y, color) {
-  for (let i = 0; i < 24; i++) {
-    particles.push({
-      x,
-      y,
-      vx: (Math.random() - 0.5) * 6,
-      vy: (Math.random() - 0.5) * 6,
-      life: 35,
-      color
-    });
-  }
+ctx.save();
+
+let bob=Math.sin(Date.now()*0.004)*4;
+
+if(player.facing===-1){
+ctx.translate(player.x+player.w,player.y+bob);
+ctx.scale(-1,1);
+ctx.drawImage(hero,0,0,player.w,player.h);
+}else{
+ctx.drawImage(hero,player.x,player.y+bob,player.w,player.h);
 }
 
-function drawBackground() {
-  const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  sky.addColorStop(0, "#071936");
-  sky.addColorStop(0.45, "#143f4a");
-  sky.addColorStop(0.8, "#2c6736");
-  sky.addColorStop(1, "#4dbb65");
+ctx.restore();
 
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const glow = ctx.createRadialGradient(
-    canvas.width * 0.72,
-    110,
-    10,
-    canvas.width * 0.72,
-    110,
-    240
-  );
-
-  glow.addColorStop(0, "rgba(140,230,255,0.28)");
-  glow.addColorStop(1, "rgba(0,0,0,0)");
-
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  drawTreeLayer(0.15, "#071522", 220, 0.45);
-  drawTreeLayer(0.35, "#14342b", 190, 0.7);
-  drawTreeLayer(0.7, "#245b35", 150, 1);
-
-  drawGround();
-  drawFireflies();
+if(player.attack){
+ctx.strokeStyle="rgba(125,247,255,.9)";
+ctx.lineWidth=6;
+ctx.beginPath();
+ctx.arc(player.x+170,player.y+170,90,-.7,.7);
+ctx.stroke();
 }
 
-function drawTreeLayer(speed, color, height, alpha) {
-  ctx.save();
-  ctx.globalAlpha = alpha;
-
-  for (let i = 0; i < 10; i++) {
-    const x = ((i * 180 - cameraX * speed) % (canvas.width + 260)) - 140;
-    const base = canvas.height - 110;
-
-    drawTree(x, base, height, color);
-  }
-
-  ctx.restore();
+if(player.spell){
+ctx.fillStyle="rgba(125,247,255,.6)";
+ctx.beginPath();
+ctx.arc(player.x+190,player.y+100,30,0,Math.PI*2);
+ctx.fill();
+}
 }
 
-function drawTree(x, y, h, color) {
-  ctx.fillStyle = "#3a2414";
+function loop(){
+ctx.clearRect(0,0,canvas.width,canvas.height);
+drawBackground();
+update();
+drawHero();
+requestAnimationFrame(loop);
+}
 
-  ctx.beginPath();
-  ctx.moveTo(x + 40, y);
-  ctx.bezierCurveTo(x + 52, y - h * 0.35, x + 25, y - h * 0.7, x + 60, y - h);
-  ctx.bezierCurveTo(x + 95, y - h * 0.65, x + 78, y - h * 0.25, x + 85, y);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.strokeStyle = "rgba(255,220,120,0.22)";
-  ctx.lineWidth = 4;
-  ctx.begin
+loop();
+</script>
+</body>
+</html>
