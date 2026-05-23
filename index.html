@@ -3,60 +3,20 @@
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Realmveil: Glassborn</title>
-
 <style>
-html,body{
-  margin:0;
-  overflow:hidden;
-  background:#07131f;
-  font-family:Arial;
-}
-canvas{
-  display:block;
-  width:100vw;
-  height:100vh;
-}
-#hud{
-  position:fixed;
-  top:14px;
-  left:14px;
-  color:white;
-  background:rgba(0,0,0,.5);
-  border:1px solid #7df7ff;
-  border-radius:14px;
-  padding:10px;
-  z-index:10;
-}
-#controls{
-  position:fixed;
-  bottom:80px;
-  left:14px;
-  display:flex;
-  gap:10px;
-  z-index:10;
-}
-button{
-  background:rgba(0,0,0,.55);
-  color:white;
-  border:1px solid #7df7ff;
-  border-radius:14px;
-  padding:12px;
-}
+html,body{margin:0;overflow:hidden;background:#07131f;font-family:Arial}
+canvas{display:block;width:100vw;height:100vh}
+#hud{position:fixed;top:14px;left:14px;color:white;background:rgba(0,0,0,.5);border:1px solid #7df7ff;border-radius:14px;padding:10px;z-index:10}
+#controls{position:fixed;bottom:80px;left:14px;display:flex;gap:10px;z-index:10}
+button{background:rgba(0,0,0,.55);color:white;border:1px solid #7df7ff;border-radius:14px;padding:12px}
 </style>
 </head>
-
 <body>
 
 <div id="hud">
 <b>Shadowborn Knight</b><br>
-HP
-<div style="width:220px;height:14px;background:#111;border-radius:20px">
-<div style="width:100%;height:100%;background:#00ff99;border-radius:20px"></div>
-</div>
-Mana
-<div style="width:220px;height:14px;background:#111;border-radius:20px">
-<div style="width:70%;height:100%;background:#009dff;border-radius:20px"></div>
-</div>
+HP <div style="width:220px;height:14px;background:#111;border-radius:20px"><div style="width:100%;height:100%;background:#00ff99;border-radius:20px"></div></div>
+Mana <div style="width:220px;height:14px;background:#111;border-radius:20px"><div style="width:70%;height:100%;background:#009dff;border-radius:20px"></div></div>
 <div id="status">Loading assets...</div>
 </div>
 
@@ -83,27 +43,27 @@ addEventListener("resize",resize);
 const hero=new Image();
 hero.src="./Noir%20.PNG";
 
-const treeSheet=new Image();
-treeSheet.src="./Tree.png.PNG";
+const bg=new Image();
+bg.src="./background.png";
 
 let heroLoaded=false;
-let treesLoaded=false;
+let bgLoaded=false;
 
 hero.onload=()=>{heroLoaded=true;updateStatus();}
-treeSheet.onload=()=>{treesLoaded=true;updateStatus();}
+bg.onload=()=>{bgLoaded=true;updateStatus();}
 
-hero.onerror=()=>{statusBox.innerText="Hero not found. Check Noir .PNG";}
-treeSheet.onerror=()=>{statusBox.innerText="Tree file not found. Check Tree.png.PNG";}
+hero.onerror=()=>{statusBox.innerText="Hero not found";}
+bg.onerror=()=>{statusBox.innerText="Background not found. Upload background.png";}
 
 function updateStatus(){
-  if(heroLoaded && treesLoaded) statusBox.innerText="Assets loaded";
-  else if(heroLoaded) statusBox.innerText="Hero loaded, waiting for trees";
-  else if(treesLoaded) statusBox.innerText="Trees loaded, waiting for hero";
+  if(heroLoaded && bgLoaded) statusBox.innerText="Assets loaded";
+  else if(heroLoaded) statusBox.innerText="Hero loaded, waiting for background";
+  else if(bgLoaded) statusBox.innerText="Background loaded, waiting for hero";
 }
 
 let player={
   x:140,
-  y:innerHeight-360,
+  y:innerHeight-370,
   w:250,
   h:320,
   speed:5,
@@ -118,132 +78,49 @@ const keys={};
 addEventListener("keydown",e=>keys[e.key.toLowerCase()]=true);
 addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
 
-function attack(){
-  player.attack=true;
-  setTimeout(()=>player.attack=false,250);
-}
-
-function dash(){
-  player.x+=90*player.facing;
-  player.dash=true;
-  setTimeout(()=>player.dash=false,250);
-}
-
-function spell(){
-  player.spell=true;
-  setTimeout(()=>player.spell=false,350);
-}
+function attack(){player.attack=true;setTimeout(()=>player.attack=false,250)}
+function dash(){player.x+=90*player.facing;player.dash=true;setTimeout(()=>player.dash=false,250)}
+function spell(){player.spell=true;setTimeout(()=>player.spell=false,350)}
 
 function drawBackground(){
-  let sky=ctx.createLinearGradient(0,0,0,canvas.height);
-  sky.addColorStop(0,"#06162f");
-  sky.addColorStop(.45,"#123b48");
-  sky.addColorStop(1,"#1d4f2b");
-  ctx.fillStyle=sky;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  ctx.fillStyle="rgba(125,247,255,.08)";
-  ctx.beginPath();
-  ctx.arc(canvas.width*.72,110,230,0,Math.PI*2);
-  ctx.fill();
-
-  drawAllTreesSideBySide();
-
-  ctx.fillStyle="#52c96b";
-  ctx.fillRect(0,canvas.height-115,canvas.width,115);
-
-  for(let i=0;i<120;i++){
-    ctx.fillStyle=i%3===0?"#d9ff9a":"#6cff7d";
-    ctx.beginPath();
-    ctx.ellipse(
-      (i*33)%canvas.width,
-      canvas.height-80-Math.sin(i)*16,
-      3,
-      7,
-      Math.sin(i),
-      0,
-      Math.PI*2
-    );
-    ctx.fill();
-  }
-
-  for(let i=0;i<80;i++){
-    ctx.fillStyle="rgba(190,255,220,.55)";
-    ctx.shadowBlur=12;
-    ctx.shadowColor="#7df7ff";
-    ctx.beginPath();
-    ctx.arc(
-      (i*50+Date.now()*.02)%canvas.width,
-      80+(i*73)%430,
-      2,
-      0,
-      Math.PI*2
-    );
-    ctx.fill();
-    ctx.shadowBlur=0;
-  }
-}
-
-function drawAllTreesSideBySide(){
-  if(!treesLoaded){
+  if(!bgLoaded){
+    ctx.fillStyle="#07131f";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
     return;
   }
 
-  const frameW=treeSheet.width/3;
-  const frameH=treeSheet.height/2;
+  const imgRatio=bg.width/bg.height;
+  const canvasRatio=canvas.width/canvas.height;
 
-  const treeW=220;
-  const treeH=300;
-  const groundY=canvas.height-410;
+  let drawW,drawH,drawX,drawY;
 
-  for(let i=0;i<6;i++){
-    const sx=(i%3)*frameW;
-    const sy=Math.floor(i/3)*frameH;
-
-    const spacing=treeW+20;
-    const totalWidth=spacing*6;
-    const startX=(canvas.width-totalWidth)/2;
-
-    const x=startX+i*spacing;
-    const y=groundY;
-
-    ctx.drawImage(
-      treeSheet,
-      sx,
-      sy,
-      frameW,
-      frameH,
-      x,
-      y,
-      treeW,
-      treeH
-    );
+  if(canvasRatio>imgRatio){
+    drawW=canvas.width;
+    drawH=canvas.width/imgRatio;
+    drawX=0;
+    drawY=(canvas.height-drawH)/2;
+  }else{
+    drawH=canvas.height;
+    drawW=canvas.height*imgRatio;
+    drawX=(canvas.width-drawW)/2;
+    drawY=0;
   }
+
+  ctx.drawImage(bg,drawX,drawY,drawW,drawH);
 }
 
 function update(){
-  if(keys["a"]||keys["arrowleft"]){
-    player.x-=player.speed;
-    player.facing=-1;
-  }
-  if(keys["d"]||keys["arrowright"]){
-    player.x+=player.speed;
-    player.facing=1;
-  }
-  if(keys["w"]||keys["arrowup"]) player.y-=player.speed;
-  if(keys["s"]||keys["arrowdown"]) player.y+=player.speed;
+  if(keys["a"]||keys["arrowleft"]){player.x-=player.speed;player.facing=-1}
+  if(keys["d"]||keys["arrowright"]){player.x+=player.speed;player.facing=1}
+  if(keys["w"]||keys["arrowup"])player.y-=player.speed;
+  if(keys["s"]||keys["arrowdown"])player.y+=player.speed;
 
   player.x=Math.max(0,Math.min(canvas.width-player.w,player.x));
   player.y=Math.max(100,Math.min(canvas.height-player.h-70,player.y));
 }
 
 function drawHero(){
-  if(!heroLoaded){
-    ctx.fillStyle="white";
-    ctx.font="22px Arial";
-    ctx.fillText("Hero image not loaded",40,180);
-    return;
-  }
+  if(!heroLoaded)return;
 
   const moving=keys["a"]||keys["d"]||keys["arrowleft"]||keys["arrowright"];
   let walkBounce=moving?Math.sin(Date.now()*0.018)*12:Math.sin(Date.now()*0.004)*4;
@@ -260,32 +137,19 @@ function drawHero(){
 
   ctx.restore();
 
-  ctx.fillStyle="rgba(0,0,0,0.25)";
-  ctx.beginPath();
-  ctx.ellipse(player.x+player.w*.5,player.y+player.h-12,55,14,0,0,Math.PI*2);
-  ctx.fill();
-
   if(player.attack){
-    ctx.save();
     ctx.strokeStyle="rgba(125,247,255,.9)";
     ctx.lineWidth=6;
-    ctx.shadowBlur=20;
-    ctx.shadowColor="#7df7ff";
     ctx.beginPath();
     ctx.arc(player.x+170,player.y+170,90,-.7,.7);
     ctx.stroke();
-    ctx.restore();
   }
 
   if(player.spell){
-    ctx.save();
     ctx.fillStyle="rgba(125,247,255,.6)";
-    ctx.shadowBlur=30;
-    ctx.shadowColor="#7df7ff";
     ctx.beginPath();
     ctx.arc(player.x+190,player.y+100,30,0,Math.PI*2);
     ctx.fill();
-    ctx.restore();
   }
 }
 
@@ -299,6 +163,5 @@ function loop(){
 
 loop();
 </script>
-
 </body>
 </html>
