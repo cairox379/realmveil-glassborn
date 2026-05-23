@@ -35,7 +35,7 @@ canvas {
 #creator {
   top: 12px;
   left: 12px;
-  width: 220px;
+  width: 230px;
 }
 
 #hud {
@@ -92,8 +92,8 @@ select {
 
   Hair:
   <select id="hair">
-    <option>Brown</option>
     <option>Black</option>
+    <option>Brown</option>
     <option>White</option>
     <option>Red</option>
   </select>
@@ -102,7 +102,7 @@ select {
 </div>
 
 <div id="hud">
-  <b id="name">Hero</b><br>
+  <b id="heroName">Hero</b><br>
   HP: <span id="hp">100</span> • XP: <span id="xp">0</span> • Level: <span id="level">1</span>
 </div>
 
@@ -125,6 +125,7 @@ function resize() {
   canvas.style.height = innerHeight + "px";
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
+
 resize();
 addEventListener("resize", resize);
 
@@ -134,13 +135,13 @@ let gameStarted = false;
 let hero = {
   x: 140,
   y: 0,
-  vy: 0,
   hp: 100,
+  maxHp: 100,
   xp: 0,
   level: 1,
   race: "Human",
   classType: "Knight",
-  hair: "Brown",
+  hair: "Black",
   attacking: false,
   casting: false,
   moving: 0
@@ -150,16 +151,18 @@ let monsters = [];
 let particles = [];
 
 function startGame() {
-  hero.race = race.value;
-  hero.classType = classType.value;
-  hero.hair = hair.value;
+  hero.race = document.getElementById("race").value;
+  hero.classType = document.getElementById("classType").value;
+  hero.hair = document.getElementById("hair").value;
 
-  creator.style.display = "none";
-  hud.style.display = "block";
-  controls.style.display = "flex";
+  document.getElementById("creator").style.display = "none";
+  document.getElementById("hud").style.display = "block";
+  document.getElementById("controls").style.display = "flex";
+
+  document.getElementById("heroName").innerText =
+    `${hero.race} ${hero.classType}`;
+
   gameStarted = true;
-
-  name.innerText = `${hero.race} ${hero.classType}`;
   spawnMonster();
 }
 
@@ -167,9 +170,9 @@ function spawnMonster() {
   monsters.push({
     x: innerWidth + 90,
     y: innerHeight - 115,
-    hp: 70,
-    maxHp: 70,
-    speed: 0.8,
+    hp: 70 + hero.level * 8,
+    maxHp: 70 + hero.level * 8,
+    speed: 0.8 + Math.random() * 0.5,
     type: Math.random() > .5 ? "goblin" : "wraith"
   });
 }
@@ -190,11 +193,11 @@ function moveRight() {
 
 function attack() {
   hero.attacking = true;
-  setTimeout(() => hero.attacking = false, 250);
+  setTimeout(() => hero.attacking = false, 260);
 
   monsters.forEach(m => {
-    if (Math.abs(m.x - hero.x) < 110) {
-      m.hp -= 35;
+    if (Math.abs(m.x - hero.x) < 120) {
+      m.hp -= 35 + hero.level * 4;
       burst(m.x, m.y - 50, "#ffd36b");
     }
   });
@@ -206,7 +209,7 @@ function spell() {
 
   monsters.forEach(m => {
     if (m.x < innerWidth) {
-      m.hp -= 22;
+      m.hp -= 24 + hero.level * 4;
       burst(m.x, m.y - 50, "#7df7ff");
     }
   });
@@ -215,7 +218,8 @@ function spell() {
 function burst(x, y, color) {
   for (let i = 0; i < 25; i++) {
     particles.push({
-      x, y,
+      x,
+      y,
       vx: (Math.random() - .5) * 6,
       vy: (Math.random() - .5) * 6,
       life: 35,
@@ -225,10 +229,10 @@ function burst(x, y, color) {
 }
 
 /*
-NEURAL WRISTBAND / GESTURE INPUT HOOKS:
-Connect Meta neural wristband gestures here when available.
+META NEURAL WRISTBAND HOOKS:
+When gesture APIs are available, connect them here.
 
-Suggested mapping:
+Suggested controls:
 - Wrist flick left  -> moveLeft()
 - Wrist flick right -> moveRight()
 - Pinch             -> attack()
@@ -240,17 +244,17 @@ document.addEventListener("keydown", e => {
   if (e.key === "ArrowLeft") moveLeft();
   if (e.key === "ArrowRight") moveRight();
   if (e.key === " ") attack();
-  if (e.key === "f") spell();
+  if (e.key.toLowerCase() === "f") spell();
 });
 
 function drawWorld() {
-  const sky = ctx.createLinearGradient(0,0,0,innerHeight);
-  sky.addColorStop(0,"#061632");
-  sky.addColorStop(.35,"#123b48");
-  sky.addColorStop(.7,"#2c6736");
-  sky.addColorStop(1,"#5ea843");
+  const sky = ctx.createLinearGradient(0, 0, 0, innerHeight);
+  sky.addColorStop(0, "#061632");
+  sky.addColorStop(.35, "#123b48");
+  sky.addColorStop(.7, "#2c6736");
+  sky.addColorStop(1, "#5ea843");
   ctx.fillStyle = sky;
-  ctx.fillRect(0,0,innerWidth,innerHeight);
+  ctx.fillRect(0, 0, innerWidth, innerHeight);
 
   drawLayerTrees(0.15, "#071522", .4, 180);
   drawLayerTrees(0.35, "#14342b", .65, 150);
@@ -264,10 +268,9 @@ function drawLayerTrees(speed, color, alpha, height) {
   ctx.save();
   ctx.globalAlpha = alpha;
 
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 9; i++) {
     const x = ((i * 210 - time * speed) % (innerWidth + 260)) - 130;
     const base = innerHeight - 80;
-
     drawDetailedTree(x, base, height, color);
   }
 
@@ -279,16 +282,16 @@ function drawDetailedTree(x, y, h, color) {
 
   ctx.beginPath();
   ctx.moveTo(x + 35, y);
-  ctx.bezierCurveTo(x + 45, y - h*.35, x + 20, y - h*.7, x + 55, y - h);
-  ctx.bezierCurveTo(x + 85, y - h*.65, x + 70, y - h*.25, x + 80, y);
+  ctx.bezierCurveTo(x + 45, y - h * .35, x + 20, y - h * .7, x + 55, y - h);
+  ctx.bezierCurveTo(x + 85, y - h * .65, x + 70, y - h * .25, x + 80, y);
   ctx.closePath();
   ctx.fill();
 
   ctx.strokeStyle = "rgba(255,210,90,.25)";
   ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.moveTo(x + 55, y - h*.2);
-  ctx.bezierCurveTo(x + 70, y - h*.45, x + 45, y - h*.65, x + 65, y - h*.9);
+  ctx.moveTo(x + 55, y - h * .2);
+  ctx.bezierCurveTo(x + 70, y - h * .45, x + 45, y - h * .65, x + 65, y - h * .9);
   ctx.stroke();
 
   for (let i = 0; i < 14; i++) {
@@ -340,7 +343,7 @@ function drawFireflies() {
     const x = (i * 97 + time * .3) % innerWidth;
     const y = 60 + ((i * 53) % (innerHeight - 180));
 
-    ctx.globalAlpha = .4 + Math.sin(time*.04+i)*.3;
+    ctx.globalAlpha = .4 + Math.sin(time * .04 + i) * .3;
     ctx.fillStyle = "#baffd9";
     ctx.shadowBlur = 14;
     ctx.shadowColor = "#7df7ff";
@@ -356,63 +359,149 @@ function drawHero() {
   ctx.save();
   ctx.translate(hero.x, hero.y);
 
-  if (hero.moving) ctx.translate(Math.sin(time*.5)*4, 0);
-  if (hero.attacking) ctx.translate(12, 0);
+  if (hero.moving !== 0) {
+    ctx.translate(0, Math.sin(time * .25) * 4);
+  }
 
-  const skin = hero.race === "Elf" ? "#d6ffc8" :
-               hero.race === "Vampire" ? "#e8ddff" :
-               hero.race === "Wraith" ? "#c8f7ff" :
-               "#ffd6a5";
+  if (hero.attacking) {
+    ctx.translate(12, 0);
+  }
 
-  const hairColor = hero.hair === "Black" ? "#151515" :
-                    hero.hair === "White" ? "#eeeeff" :
-                    hero.hair === "Red" ? "#9b2f1f" :
-                    "#5b2a1d";
+  const cloak =
+    hero.classType === "Mage"
+      ? "#3b2d88"
+      : hero.classType === "Bloodblade"
+      ? "#7d1e2c"
+      : "#23252e";
 
-  ctx.shadowBlur = 20;
-  ctx.shadowColor = "#7df7ff";
+  const armor =
+    hero.classType === "Knight"
+      ? "#454d67"
+      : "#5b2d2d";
 
-  ctx.fillStyle = hero.classType === "Mage" ? "#6536a8" : "#26305a";
+  const skin =
+    hero.race === "Elf"
+      ? "#f0f5d8"
+      : hero.race === "Vampire"
+      ? "#e8d8ff"
+      : hero.race === "Wraith"
+      ? "#2d2f55"
+      : "#ffd7b3";
+
+  const glow =
+    hero.race === "Wraith"
+      ? "#7df7ff"
+      : hero.race === "Vampire"
+      ? "#ff6bb3"
+      : "#7df7ff";
+
+  const hairColor =
+    hero.hair === "White"
+      ? "#f2f2ff"
+      : hero.hair === "Red"
+      ? "#7a1e1e"
+      : hero.hair === "Brown"
+      ? "#3d2415"
+      : "#111";
+
+  ctx.fillStyle = cloak;
   ctx.beginPath();
-  ctx.roundRect(-15, -62, 30, 48, 10);
+  ctx.moveTo(-20, -55);
+  ctx.quadraticCurveTo(-45, 0, -15, 25);
+  ctx.lineTo(20, 18);
+  ctx.quadraticCurveTo(45, -10, 18, -58);
+  ctx.fill();
+
+  ctx.fillStyle = armor;
+  ctx.beginPath();
+  ctx.roundRect(-18, -60, 36, 52, 12);
+  ctx.fill();
+
+  ctx.fillStyle = "#161616";
+  ctx.fillRect(-13, -10, 10, 28);
+  ctx.fillRect(3, -10, 10, 28);
+
+  ctx.fillStyle = "#0f0f0f";
+  ctx.beginPath();
+  ctx.ellipse(-8, 20, 10, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.ellipse(8, 20, 10, 6, 0, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = skin;
   ctx.beginPath();
-  ctx.arc(0, -80, 15, 0, Math.PI * 2);
+  ctx.arc(0, -82, 19, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = hairColor;
+  const hairPoints = [-18, -13, -8, -3, 2, 7, 12, 17];
+  hairPoints.forEach((px, i) => {
+    ctx.beginPath();
+    ctx.moveTo(px, -88);
+    ctx.lineTo(px + 6, -108 - (i % 3) * 5);
+    ctx.lineTo(px + 13, -85);
+    ctx.fill();
+  });
+
+  ctx.shadowBlur = 18;
+  ctx.shadowColor = glow;
+  ctx.fillStyle = glow;
+
   ctx.beginPath();
-  ctx.arc(0, -90, 16, Math.PI, 0);
+  ctx.ellipse(-6, -82, 3.5, 5, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = "#111";
   ctx.beginPath();
-  ctx.arc(-5, -81, 2, 0, Math.PI * 2);
-  ctx.arc(6, -81, 2, 0, Math.PI * 2);
+  ctx.ellipse(6, -82, 3.5, 5, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = "#552200";
+  ctx.shadowBlur = 0;
+
+  ctx.strokeStyle = "#2b140f";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.arc(0, -74, 5, 0, Math.PI);
+  ctx.arc(0, -72, 5, 0, Math.PI);
   ctx.stroke();
 
-  ctx.strokeStyle = "#e8f7ff";
-  ctx.lineWidth = 4;
+  ctx.strokeStyle = "#9aa6d1";
+  ctx.lineWidth = 2;
+
   ctx.beginPath();
-  ctx.moveTo(14, -48);
-  ctx.lineTo(hero.attacking ? 76 : 36, hero.attacking ? -62 : -78);
+  ctx.moveTo(-10, -38);
+  ctx.lineTo(10, -38);
   ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(0, -60);
+  ctx.lineTo(0, -12);
+  ctx.stroke();
+
+  ctx.save();
+  ctx.translate(20, -48);
+  ctx.rotate(hero.attacking ? -1 : -0.35);
+
+  ctx.fillStyle = "#dce8ff";
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(72, -10);
+  ctx.lineTo(75, 0);
+  ctx.lineTo(0, 8);
+  ctx.fill();
+
+  ctx.fillStyle = "#5e677a";
+  ctx.fillRect(-12, -6, 20, 12);
+  ctx.restore();
 
   if (hero.casting) {
-    ctx.fillStyle = "rgba(125,247,255,.75)";
-    ctx.shadowBlur = 28;
+    ctx.shadowBlur = 30;
     ctx.shadowColor = "#7df7ff";
+    ctx.fillStyle = "rgba(125,247,255,.85)";
     ctx.beginPath();
-    ctx.arc(52, -72, 24, 0, Math.PI * 2);
+    ctx.arc(65, -65, 22, 0, Math.PI * 2);
     ctx.fill();
+    ctx.shadowBlur = 0;
   }
 
   ctx.restore();
@@ -436,25 +525,44 @@ function drawMonster(m) {
   ctx.arc(9, -42, 4, 0, Math.PI * 2);
   ctx.fill();
 
+  ctx.fillStyle = "rgba(255,255,255,.25)";
+  ctx.fillRect(-26, -82, 52, 6);
+
+  ctx.fillStyle = "#ff5555";
+  ctx.fillRect(-26, -82, 52 * Math.max(0, m.hp / m.maxHp), 6);
+
   ctx.restore();
 }
 
 function update() {
   time++;
+
   hero.y = innerHeight - 92;
   hero.x += hero.moving * 4;
   hero.x = Math.max(60, Math.min(innerWidth - 80, hero.x));
 
   monsters.forEach(m => {
     m.x -= m.speed;
-    if (Math.abs(m.x - hero.x) < 35) hero.hp -= .08;
+
+    if (Math.abs(m.x - hero.x) < 35) {
+      hero.hp = Math.max(0, hero.hp - .08);
+    }
   });
 
   monsters = monsters.filter(m => {
     if (m.hp <= 0) {
       hero.xp += 10;
+
+      if (hero.xp >= hero.level * 50) {
+        hero.xp = 0;
+        hero.level++;
+        hero.maxHp += 10;
+        hero.hp = hero.maxHp;
+      }
+
       return false;
     }
+
     return m.x > -80;
   });
 
@@ -466,9 +574,9 @@ function update() {
 
   particles = particles.filter(p => p.life > 0);
 
-  hp.innerText = Math.floor(hero.hp);
-  xp.innerText = hero.xp;
-  level.innerText = hero.level;
+  document.getElementById("hp").innerText = Math.floor(hero.hp);
+  document.getElementById("xp").innerText = hero.xp;
+  document.getElementById("level").innerText = hero.level;
 }
 
 function drawParticles() {
@@ -478,7 +586,7 @@ function drawParticles() {
     ctx.shadowBlur = 16;
     ctx.shadowColor = p.color;
     ctx.beginPath();
-    ctx.arc(p.x,p.y,4,0,Math.PI*2);
+    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
     ctx.shadowBlur = 0;
@@ -488,11 +596,13 @@ function drawParticles() {
 function loop() {
   update();
   drawWorld();
+
   if (gameStarted) {
     drawHero();
     monsters.forEach(drawMonster);
     drawParticles();
   }
+
   requestAnimationFrame(loop);
 }
 
