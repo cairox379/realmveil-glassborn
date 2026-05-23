@@ -265,3 +265,23 @@ hero.onload = () => {
 
 </body>
 </html>
+const heroImage = new Image();
+heroImage.src = "Noir%20.PNG";
+
+const player = {
+    x: 300,
+    y: 300,
+    width: 170,
+    height: 170,
+    speed: 5
+};
+
+function drawPlayer() {
+    ctx.drawImage(
+        heroImage,
+        player.x,
+        player.y,
+        player.width,
+        player.height
+    );
+}
