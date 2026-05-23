@@ -129,33 +129,73 @@ ctx.fillText("Hero image not loaded",40,180);
 return;
 }
 
+const moving =
+keys["a"] ||
+keys["d"] ||
+keys["arrowleft"] ||
+keys["arrowright"];
+
+let walkBounce=0;
+let capeWave=0;
+
+if(moving){
+walkBounce=Math.sin(Date.now()*0.018)*12;
+capeWave=Math.sin(Date.now()*0.012)*10;
+}else{
+walkBounce=Math.sin(Date.now()*0.004)*4;
+capeWave=Math.sin(Date.now()*0.003)*3;
+}
+
 ctx.save();
 
-let bob=Math.sin(Date.now()*0.004)*4;
-
 if(player.facing===-1){
-ctx.translate(player.x+player.w,player.y+bob);
+ctx.translate(player.x+player.w,player.y+walkBounce);
 ctx.scale(-1,1);
-ctx.drawImage(hero,0,0,player.w,player.h);
 }else{
-ctx.drawImage(hero,player.x,player.y+bob,player.w,player.h);
+ctx.translate(player.x,player.y+walkBounce);
+}
+
+ctx.save();
+ctx.translate(player.w*0.03,0);
+ctx.rotate(capeWave*0.002);
+ctx.drawImage(hero,0,0,player.w,player.h);
+ctx.restore();
+
+ctx.fillStyle="rgba(0,0,0,0.25)";
+ctx.beginPath();
+ctx.ellipse(player.w*.5,player.h-12,55,14,0,0,Math.PI*2);
+ctx.fill();
+
+if(moving && Math.random()<0.25){
+ctx.fillStyle="rgba(180,255,220,0.55)";
+ctx.beginPath();
+ctx.arc(player.w*.5+(Math.random()*40-20),player.h-6,3,0,Math.PI*2);
+ctx.fill();
 }
 
 ctx.restore();
 
 if(player.attack){
+ctx.save();
 ctx.strokeStyle="rgba(125,247,255,.9)";
 ctx.lineWidth=6;
+ctx.shadowBlur=20;
+ctx.shadowColor="#7df7ff";
 ctx.beginPath();
 ctx.arc(player.x+170,player.y+170,90,-.7,.7);
 ctx.stroke();
+ctx.restore();
 }
 
 if(player.spell){
+ctx.save();
 ctx.fillStyle="rgba(125,247,255,.6)";
+ctx.shadowBlur=30;
+ctx.shadowColor="#7df7ff";
 ctx.beginPath();
 ctx.arc(player.x+190,player.y+100,30,0,Math.PI*2);
 ctx.fill();
+ctx.restore();
 }
 }
 
